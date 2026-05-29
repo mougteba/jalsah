@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider afterSignOutUrl="/">
+    <ClerkProvider afterSignOutUrl="/" afterSignInUrl="/redirect">
       <html lang="ar" dir="rtl">
         <body>
           <ConvexClientProvider>
