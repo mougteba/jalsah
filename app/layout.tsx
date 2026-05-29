@@ -16,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <body>
-        <ClerkProvider afterSignInUrl="/redirect" afterSignUpUrl="/redirect">
+        <ClerkProvider afterSignOutUrl="/">
           <ConvexClientProvider>
             {children}
           </ConvexClientProvider>
