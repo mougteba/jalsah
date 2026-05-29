@@ -15,8 +15,11 @@ const stepValidator = v.object({
 
 const questionValidator = v.object({
   text: v.string(),
-  type: v.union(v.literal("mcq"), v.literal("truefalse")),
-  options: v.optional(v.array(v.string())),
+type: v.union(
+  v.literal("mcq"),
+  v.literal("truefalse"),
+  v.literal("open")
+),  options: v.optional(v.array(v.string())),
   answer: v.string(),
 });
 

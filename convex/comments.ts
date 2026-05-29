@@ -45,3 +45,17 @@ export const getAllComments = query({
     return enriched;
   },
 });
+
+export const deleteComment = mutation({
+  args: {
+    commentId: v.id("comments"),
+    userId: v.string(),
+    isAdmin: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const comment = await ctx.db.get(args.commentId);
+    if (!comment) return;
+    if (comment.userId !== args.userId && !args.isAdmin) return;
+    await ctx.db.delete(args.commentId);
+  },
+});

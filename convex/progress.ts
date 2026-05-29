@@ -53,3 +53,35 @@ export const completeStage = mutation({
     }
   },
 });
+
+export const getAllUsersProgress = query({
+  handler: async (ctx) => {
+    const allProgress = await ctx.db.query("progress").collect();
+    const enriched = await Promise.all(
+      allProgress.map(async (p) => {
+        const user = await ctx.db
+          .query("users")
+          .withIndex("by_clerkId", (q) => q.eq("clerkId", p.userId))
+          .first();
+        const stage = await ctx.db.get(p.stageId);
+        return {
+          ...p,
+          userName: user?.name ?? "مجهول",
+          userImage: user?.image,
+          stageTitle: stage?.title ?? "—",
+          stageTrack: stage?.track ?? "—",
+        };
+      })
+    );
+    return enriched.sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0));
+  },
+});
+
+export const resetStageProgress = mutation({
+  args: { stageId: v.id("stages") },
+  handler: async (ctx, args) => {
+    const records = await ctx.db.query("progress").collect();
+    const toDelete = records.filter((p) => p.stageId === args.stageId);
+    await Promise.all(toDelete.map((p) => ctx.db.delete(p._id)));
+  },
+});

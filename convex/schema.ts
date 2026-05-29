@@ -26,7 +26,7 @@ export default defineSchema({
     adminLocked: v.optional(v.boolean()),
     questions: v.array(v.object({
       text: v.string(),
-      type: v.union(v.literal("mcq"), v.literal("truefalse")),
+      type: v.union(v.literal("mcq"), v.literal("truefalse"), v.literal("open")),
       options: v.optional(v.array(v.string())),
       answer: v.string(),
     })),
