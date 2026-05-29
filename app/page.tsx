@@ -1,3 +1,5 @@
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Brain, Zap, Code2, Cpu, ArrowLeft, CheckCircle, Quote } from "lucide-react";
 
@@ -31,7 +33,10 @@ const features = [
   "روابط لأفضل المصادر العالمية",
 ];
 
-export default function Home() {
+export default async function Home() {
+  const { userId } = await auth();
+  if (userId) redirect("/redirect");
+
   return (
     <main dir="rtl" style={{background:"#080808", minHeight:"100vh", fontFamily:"'IBM Plex Sans Arabic', sans-serif"}} className="flex flex-col">
 
