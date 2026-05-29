@@ -14,14 +14,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ar" dir="rtl">
-      <body>
-        <ClerkProvider afterSignOutUrl="/">
+    <ClerkProvider afterSignOutUrl="/">
+      <html lang="ar" dir="rtl">
+        <body>
           <ConvexClientProvider>
             {children}
           </ConvexClientProvider>
-        </ClerkProvider>
-      </body>
-    </html>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
