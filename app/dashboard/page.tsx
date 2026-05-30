@@ -27,8 +27,11 @@ function TracksPage({ userId }: { userId: string }) {
     return { total, percent: Math.round((done / total) * 100) };
   };
 
-  const trackIcons: Record<string, string> = {
-    ai: "🧠", automation: "⚡", vibe: "💻", engineering: "⚙️"
+  const trackIcons: Record<string, React.JSX.Element> = {
+    ai:          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.5"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V12h2a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2h-1v1a3 3 0 0 1-6 0v-1H7a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2h2V9.5C7.8 8.8 7 7.5 7 6a4 4 0 0 1 4-4h1z"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/></svg>,
+    automation:  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+    vibe:        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>,
+    engineering: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>,
   };
 
   return (
@@ -45,7 +48,7 @@ function TracksPage({ userId }: { userId: string }) {
               className="rounded-2xl p-5 space-y-3 mb-3 hover:border-yellow-900 transition-colors">
               <div className="flex items-center gap-3">
                 <div style={{background:"#141414", border:"1px solid #1e1e1e"}}
-                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg">
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0">
                   {trackIcons[track.id]}
                 </div>
                 <div>
@@ -232,7 +235,8 @@ function SettingsPage({ user, signOut }: { user: any; signOut: any }) {
 export default function Dashboard() {
   const { user } = useUser();
   const { signOut } = useClerk();
-  const [page, setPage] = useState<"tracks"|"experiences"|"messages"|"settings">("tracks");
+  const [page, setPage] = useState<"tracks"|"experiences"|"settings">("tracks");
+  const [showMessages, setShowMessages] = useState(false);
   const unreadCount = useQuery(api.messages.getUnreadCount, { userId: user?.id || "" });
 
   const navItems = [
@@ -250,20 +254,6 @@ export default function Dashboard() {
         </svg>
       )
     },
-    { id:"messages",    label:"الرسائل",
-      icon: (active: boolean) => (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
-          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
-        </svg>
-      )
-    },
-    { id:"settings",    label:"إعدادات",
-      icon: (active: boolean) => (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
-          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
-      )
-    },
   ];
 
   return (
@@ -272,17 +262,14 @@ export default function Dashboard() {
         className="px-6 py-4 sticky top-0 z-10 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div style={{background:"#C9A84C", borderRadius:"6px"}} className="w-6 h-6 flex items-center justify-center">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5">
-              <path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/>
-              <circle cx="12" cy="9" r="2.5"/>
-            </svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.87A2.5 2.5 0 0 1 9.5 2"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.87A2.5 2.5 0 0 0 14.5 2"/></svg>
           </div>
           <h1 style={{color:"#C9A84C"}} className="text-lg font-bold tracking-wide">جلسة</h1>
         </div>
 
-        <button onClick={() => setPage("messages")} className="relative">
+        <button onClick={() => setShowMessages(true)} className="relative">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-            stroke={page === "messages" ? "#C9A84C" : "#444"} strokeWidth="1.5">
+            stroke={showMessages ? "#C9A84C" : "#444"} strokeWidth="1.5">
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
             <polyline points="22,6 12,13 2,6"/>
           </svg>
@@ -297,9 +284,20 @@ export default function Dashboard() {
 
       {page === "tracks"      && <TracksPage userId={user?.id || ""} />}
       {page === "experiences" && <ExperiencesPage />}
-      {page === "messages"    && <MessagesPage userId={user?.id || ""} userName={user?.fullName || "مجهول"} userImage={user?.imageUrl} />}
+      
       {page === "settings"    && <SettingsPage user={user} signOut={signOut} />}
 
+      {showMessages && (
+        <div style={{background:"#080808", position:"fixed", inset:0, zIndex:50}} dir="rtl">
+          <div style={{background:"#080808", borderBottom:"1px solid #141414"}} className="px-6 py-4 flex items-center gap-3">
+            <button onClick={() => setShowMessages(false)} style={{color:"#C9A84C"}}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <p style={{color:"#C9A84C"}} className="font-bold">الرسائل</p>
+          </div>
+          <MessagesPage userId={user?.id || ""} userName={user?.fullName || "مجهول"} userImage={user?.imageUrl} />
+        </div>
+      )}
       <nav style={{background:"#0a0a0a", borderTop:"1px solid #141414"}}
         className="fixed bottom-0 left-0 right-0 flex justify-around py-2 z-10">
         {navItems.map(({ id, icon, label }) => (
