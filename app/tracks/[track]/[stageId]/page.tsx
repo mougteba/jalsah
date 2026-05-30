@@ -42,24 +42,14 @@ export default function StagePage() {
       const q = stage.questions[i];
       if (q.type === "open") {
         try {
-          const res = await fetch("https://api.anthropic.com/v1/messages", {
+          const res = await fetch("/api/grade-open", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-20250514",
-              max_tokens: 200,
-              messages: [{
-                role: "user",
-                content: `أنت مصحح اختبار. السؤال: "${q.text}". الإجابة النموذجية: "${q.answer}". إجابة الطالب: "${answers[i] || ""}". هل الإجابة صحيحة أو قريبة من الصحيحة؟ أجب بـ JSON فقط: {"correct": true/false, "feedback": "تعليق قصير"}`
-              }]
-            })
+            body: JSON.stringify({ question: q.text, modelAnswer: q.answer, userAnswer: answers[i] || "" }),
           });
           const data = await res.json();
-          const text = data.content?.[0]?.text || '{"correct":false,"feedback":"تعذر التقييم"}';
-          const clean = text.replace(/```json|```/g, "").trim();
-          const parsed = JSON.parse(clean);
-          newOpenResults[i] = parsed;
-          if (parsed.correct) correct++;
+          newOpenResults[i] = data?.correct !== undefined ? data : { correct: false, feedback: "تعذر التقييم" };
+          if (data.correct) correct++;
         } catch {
           newOpenResults[i] = { correct: false, feedback: "تعذر التقييم" };
         }
@@ -260,9 +250,6 @@ export default function StagePage() {
                         <span style={{color: answers[i] === q.answer ? "#4ade80" : "#ef4444"}}>
                           {answers[i] || "—"} {answers[i] === q.answer ? "✓" : "✗"}
                         </span>
-                        {answers[i] !== q.answer && (
-                          <span className="text-gray-500 mr-2">الصحيحة: <span style={{color:"#C9A84C"}}>{q.answer}</span></span>
-                        )}
                       </div>
                     )}
                   </div>

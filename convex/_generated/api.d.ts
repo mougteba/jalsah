@@ -9,6 +9,7 @@
  */
 
 import type * as comments from "../comments.js";
+import type * as messages from "../messages.js";
 import type * as progress from "../progress.js";
 import type * as seed from "../seed.js";
 import type * as stages from "../stages.js";
@@ -22,6 +23,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   comments: typeof comments;
+  messages: typeof messages;
   progress: typeof progress;
   seed: typeof seed;
   stages: typeof stages;

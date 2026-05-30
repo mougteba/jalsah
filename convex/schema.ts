@@ -49,4 +49,16 @@ export default defineSchema({
     content: v.string(),
     createdAt: v.number(),
   }).index("by_stage", ["stageId"]),
+
+  messages: defineTable({
+    fromId: v.string(),
+    toId: v.string(),
+    fromName: v.string(),
+    fromImage: v.optional(v.string()),
+    content: v.string(),
+    read: v.boolean(),
+    createdAt: v.number(),
+  }).index("by_conversation", ["fromId", "toId"])
+    .index("by_to", ["toId"])
+    .index("by_from", ["fromId"]),
 });

@@ -1,31 +1,34 @@
 "use client";
 import { useUser, useClerk } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import Link from "next/link";
 import { useState } from "react";
-import { Brain, Zap, Code2, Cpu, Home, MessageSquare, Settings } from "lucide-react";
 
 const tracks = [
-  { id:"ai",          title:"الذكاء الاصطناعي",          sub:"AI Foundations",     Icon: Brain },
-  { id:"automation",  title:"الأتمتة بالذكاء الاصطناعي", sub:"AI Automation",      Icon: Zap   },
-  { id:"vibe",        title:"Vibe Coding",               sub:"من الفكرة للتطبيق", Icon: Code2 },
-  { id:"engineering", title:"Vibe Engineering",          sub:"المستوى المتقدم",   Icon: Cpu   },
+  { id:"ai",          title:"الذكاء الاصطناعي",          sub:"AI Foundations"     },
+  { id:"automation",  title:"الأتمتة بالذكاء الاصطناعي", sub:"AI Automation"      },
+  { id:"vibe",        title:"Vibe Coding",               sub:"من الفكرة للتطبيق" },
+  { id:"engineering", title:"Vibe Engineering",          sub:"المستوى المتقدم"   },
 ];
 
+const ADMIN_ID = "admin";
+
 function TracksPage({ userId }: { userId: string }) {
-  const allStages    = useQuery(api.stages.getAllStages);
-  const allProgress  = useQuery(api.progress.getUserProgress, { userId });
+  const allStages   = useQuery(api.stages.getAllStages);
+  const allProgress = useQuery(api.progress.getUserProgress, { userId });
 
   const getTrackStats = (trackId: string) => {
     const trackStages = allStages?.filter(s => s.track === trackId) || [];
     const total = trackStages.length;
     if (!total) return { total: 0, percent: 0 };
-    const completedIds = new Set(
-      allProgress?.filter(p => p.completed).map(p => p.stageId) || []
-    );
+    const completedIds = new Set(allProgress?.filter(p => p.completed).map(p => p.stageId) || []);
     const done = trackStages.filter(s => completedIds.has(s._id)).length;
     return { total, percent: Math.round((done / total) * 100) };
+  };
+
+  const trackIcons: Record<string, string> = {
+    ai: "🧠", automation: "⚡", vibe: "💻", engineering: "⚙️"
   };
 
   return (
@@ -42,8 +45,8 @@ function TracksPage({ userId }: { userId: string }) {
               className="rounded-2xl p-5 space-y-3 mb-3 hover:border-yellow-900 transition-colors">
               <div className="flex items-center gap-3">
                 <div style={{background:"#141414", border:"1px solid #1e1e1e"}}
-                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0">
-                  <track.Icon size={18} color="#C9A84C" strokeWidth={1.5} />
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg">
+                  {trackIcons[track.id]}
                 </div>
                 <div>
                   <p className="font-semibold text-white text-sm">{track.title}</p>
@@ -72,16 +75,11 @@ function TracksPage({ userId }: { userId: string }) {
 function ExperiencesPage() {
   const comments = useQuery(api.comments.getAllComments);
   const allStages = useQuery(api.stages.getAllStages);
-
-  const stageMap = Object.fromEntries(
-    (allStages || []).map(s => [s._id, { title: s.title, track: s.track }])
-  );
-
+  const stageMap = Object.fromEntries((allStages || []).map(s => [s._id, { title: s.title, track: s.track }]));
   const trackNames: Record<string, string> = {
     ai: "الذكاء الاصطناعي", automation: "الأتمتة",
     vibe: "Vibe Coding", engineering: "Vibe Engineering",
   };
-
   return (
     <div className="px-4 pt-6 space-y-3 pb-4">
       <div>
@@ -100,9 +98,7 @@ function ExperiencesPage() {
             {stage && (
               <Link href={`/tracks/${stage.track}/${c.stageId}`} className="flex items-center gap-2 flex-wrap">
                 <span style={{background:"#0e0e0e", border:"1px solid #1a1500", color:"#C9A84C"}}
-                  className="text-xs px-2 py-1 rounded-lg">
-                  {trackNames[stage.track]}
-                </span>
+                  className="text-xs px-2 py-1 rounded-lg">{trackNames[stage.track]}</span>
                 <span style={{color:"#444"}} className="text-xs">←</span>
                 <span style={{color:"#666"}} className="text-xs">{stage.title}</span>
               </Link>
@@ -118,9 +114,7 @@ function ExperiencesPage() {
               <div className="flex-1">
                 <p className="text-xs font-semibold text-white">{c.userName}</p>
               </div>
-              <p style={{color:"#333"}} className="text-xs">
-                {new Date(c.createdAt).toLocaleDateString("ar")}
-              </p>
+              <p style={{color:"#333"}} className="text-xs">{new Date(c.createdAt).toLocaleDateString("ar")}</p>
             </div>
             <p style={{color:"#666", lineHeight:"1.8"}} className="text-sm">{c.content}</p>
           </div>
@@ -130,24 +124,82 @@ function ExperiencesPage() {
   );
 }
 
+function MessagesPage({ userId, userName, userImage }: { userId: string; userName: string; userImage?: string }) {
+  const conversation = useQuery(api.messages.getConversation, { userId, otherUserId: ADMIN_ID });
+  const sendMessage = useMutation(api.messages.sendMessage);
+  const markAsRead = useMutation(api.messages.markAsRead);
+  const [text, setText] = useState("");
+
+  useState(() => {
+    if (userId) markAsRead({ userId, fromId: ADMIN_ID });
+  });
+
+  const handleSend = async () => {
+    if (!text.trim()) return;
+    await sendMessage({ fromId: userId, toId: ADMIN_ID, fromName: userName, fromImage: userImage, content: text });
+    setText("");
+  };
+
+  return (
+    <div className="px-4 pt-6 pb-4 space-y-4">
+      <div>
+        <h2 className="text-xl font-bold text-white">الرسائل</h2>
+        <p style={{color:"#444"}} className="text-sm mt-1">محادثتك مع الإدارة</p>
+      </div>
+
+      <div style={{background:"#111", border:"1px solid #1e1e1e", minHeight:"300px"}}
+        className="rounded-2xl p-4 space-y-3 flex flex-col">
+        {!conversation?.length && (
+          <div className="flex-1 flex items-center justify-center">
+            <p style={{color:"#333"}} className="text-sm">لا توجد رسائل بعد — ابدأ المحادثة</p>
+          </div>
+        )}
+        {conversation?.map((msg) => {
+          const isMe = msg.fromId === userId;
+          return (
+            <div key={msg._id} className={`flex ${isMe ? "justify-start" : "justify-end"}`}>
+              <div style={{
+                background: isMe ? "#1a1500" : "#141414",
+                border: isMe ? "1px solid #3a3000" : "1px solid #1e1e1e",
+                maxWidth: "80%",
+              }} className="rounded-2xl px-4 py-2.5 space-y-1">
+                <p className="text-sm text-gray-200">{msg.content}</p>
+                <p style={{color:"#444"}} className="text-xs">{new Date(msg.createdAt).toLocaleTimeString("ar")}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-2xl p-4 space-y-3">
+        <textarea value={text} onChange={(e) => setText(e.target.value)}
+          placeholder="اكتب رسالتك..."
+          style={{background:"#0e0e0e", border:"1px solid #1e1e1e", color:"#f5f5f5"}}
+          className="w-full rounded-xl px-4 py-3 text-sm outline-none min-h-16 resize-none placeholder-gray-700" />
+        <button onClick={handleSend} disabled={!text.trim()}
+          style={{background: text.trim() ? "#C9A84C" : "#1a1a1a", color: text.trim() ? "#000" : "#444"}}
+          className="w-full py-2.5 rounded-xl text-sm font-semibold">
+          إرسال
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SettingsPage({ user, signOut }: { user: any; signOut: any }) {
   const [name, setName] = useState(user?.fullName || "");
   const [saved, setSaved] = useState(false);
-
   const handleSave = async () => {
     const parts = name.trim().split(" ");
     await user?.update({ firstName: parts[0], lastName: parts.slice(1).join(" ") });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaved(true); setTimeout(() => setSaved(false), 2000);
   };
-
   return (
     <div className="px-4 pt-6 space-y-4 pb-4">
       <div style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-2xl p-5">
         <div className="flex items-center gap-4">
           {user?.imageUrl
-            ? <img src={user.imageUrl} className="w-14 h-14 rounded-full object-cover"
-                style={{border:"2px solid #C9A84C"}} alt="" />
+            ? <img src={user.imageUrl} className="w-14 h-14 rounded-full object-cover" style={{border:"2px solid #C9A84C"}} alt="" />
             : <div style={{background:"#141414", border:"2px solid #C9A84C"}}
                 className="w-14 h-14 rounded-full flex items-center justify-center">
                 <span style={{color:"#C9A84C"}} className="text-xl font-bold">{user?.fullName?.[0]}</span>
@@ -156,9 +208,6 @@ function SettingsPage({ user, signOut }: { user: any; signOut: any }) {
           <div>
             <p className="font-bold text-white">{user?.fullName}</p>
             <p style={{color:"#444"}} className="text-xs mt-0.5">{user?.emailAddresses[0]?.emailAddress}</p>
-            <p style={{color:"#333"}} className="text-xs mt-0.5">
-              انضم {new Date(user?.createdAt).toLocaleDateString("ar")}
-            </p>
           </div>
         </div>
       </div>
@@ -175,9 +224,7 @@ function SettingsPage({ user, signOut }: { user: any; signOut: any }) {
       </div>
       <button onClick={() => signOut({ redirectUrl: "/" })}
         style={{border:"1px solid #2a1a1a", color:"#ef4444"}}
-        className="w-full py-3 rounded-xl text-sm bg-transparent">
-        تسجيل الخروج
-      </button>
+        className="w-full py-3 rounded-xl text-sm bg-transparent">تسجيل الخروج</button>
     </div>
   );
 }
@@ -185,12 +232,38 @@ function SettingsPage({ user, signOut }: { user: any; signOut: any }) {
 export default function Dashboard() {
   const { user } = useUser();
   const { signOut } = useClerk();
-  const [page, setPage] = useState<"tracks"|"experiences"|"settings">("tracks");
+  const [page, setPage] = useState<"tracks"|"experiences"|"messages"|"settings">("tracks");
+  const unreadCount = useQuery(api.messages.getUnreadCount, { userId: user?.id || "" });
 
   const navItems = [
-    { id:"tracks",      Icon: Home,          label:"المسارات"  },
-    { id:"experiences", Icon: MessageSquare, label:"التجارب"   },
-    { id:"settings",    Icon: Settings,      label:"إعدادات"   },
+    { id:"tracks",      label:"المسارات",
+      icon: (active: boolean) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      )
+    },
+    { id:"experiences", label:"التجارب",
+      icon: (active: boolean) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      )
+    },
+    { id:"messages",    label:"الرسائل",
+      icon: (active: boolean) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+        </svg>
+      )
+    },
+    { id:"settings",    label:"إعدادات",
+      icon: (active: boolean) => (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      )
+    },
   ];
 
   return (
@@ -198,34 +271,43 @@ export default function Dashboard() {
       <header style={{background:"#080808", borderBottom:"1px solid #141414"}}
         className="px-6 py-4 sticky top-0 z-10 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div style={{background:"#C9A84C", borderRadius:"6px"}}
-            className="w-6 h-6 flex items-center justify-center">
-            <Brain size={13} color="#000" strokeWidth={2.5} />
+          <div style={{background:"#C9A84C", borderRadius:"6px"}} className="w-6 h-6 flex items-center justify-center">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5">
+              <path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/>
+              <circle cx="12" cy="9" r="2.5"/>
+            </svg>
           </div>
           <h1 style={{color:"#C9A84C"}} className="text-lg font-bold tracking-wide">جلسة</h1>
         </div>
-        {user?.imageUrl
-          ? <img src={user.imageUrl} className="w-8 h-8 rounded-full object-cover"
-              style={{border:"1px solid #C9A84C44"}} alt="" />
-          : <div style={{background:"#141414", border:"1px solid #C9A84C44"}}
-              className="w-8 h-8 rounded-full flex items-center justify-center">
-              <span style={{color:"#C9A84C"}} className="text-xs font-bold">{user?.fullName?.[0]}</span>
-            </div>
-        }
+
+        <button onClick={() => setPage("messages")} className="relative">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+            stroke={page === "messages" ? "#C9A84C" : "#444"} strokeWidth="1.5">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          {unreadCount && unreadCount > 0 ? (
+            <span style={{background:"#ef4444", color:"#fff", fontSize:"9px", minWidth:"16px", height:"16px"}}
+              className="absolute -top-1 -left-1 rounded-full flex items-center justify-center px-1 font-bold">
+              {unreadCount}
+            </span>
+          ) : null}
+        </button>
       </header>
 
       {page === "tracks"      && <TracksPage userId={user?.id || ""} />}
       {page === "experiences" && <ExperiencesPage />}
+      {page === "messages"    && <MessagesPage userId={user?.id || ""} userName={user?.fullName || "مجهول"} userImage={user?.imageUrl} />}
       {page === "settings"    && <SettingsPage user={user} signOut={signOut} />}
 
       <nav style={{background:"#0a0a0a", borderTop:"1px solid #141414"}}
-        className="fixed bottom-0 left-0 right-0 flex justify-around py-3 z-10">
-        {navItems.map(({ id, Icon, label }) => (
+        className="fixed bottom-0 left-0 right-0 flex justify-around py-2 z-10">
+        {navItems.map(({ id, icon, label }) => (
           <button key={id} onClick={() => setPage(id as any)}
-            className="flex flex-col items-center gap-1 text-xs transition-all"
+            className="flex flex-col items-center gap-0.5 transition-all"
             style={{color: page === id ? "#C9A84C" : "#333"}}>
-            <Icon size={20} strokeWidth={page === id ? 2 : 1.5} />
-            {label}
+            {icon(page === id)}
+            <span className="text-[10px]">{label}</span>
           </button>
         ))}
       </nav>

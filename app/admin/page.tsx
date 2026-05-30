@@ -517,54 +517,263 @@ function CommentsPage({ adminId }: { adminId: string }) {
 }
 
 function ProgressPage() {
-  const progress = useQuery(api.progress.getAllUsersProgress);
-  if (!progress) return <div className="flex justify-center pt-20"><Loader size={20} color="#C9A84C" className="animate-spin" /></div>;
+  const users = useQuery(api.users.getAllUsers);
+  const stages = useQuery(api.stages.getAllStages);
+  const unlockStage = useMutation(api.progress.unlockStageForUser);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const userProgress = useQuery(
+    api.progress.getUserProgressDetailed,
+    selectedUser ? { userId: selectedUser.clerkId } : "skip"
+  );
+
   const trackColors: Record<string, string> = {
     ai: "#60a5fa", automation: "#a78bfa", vibe: "#34d399", engineering: "#f97316"
   };
+  const trackLabels: Record<string, string> = {
+    ai: "AI Foundations", automation: "AI Automation", vibe: "Vibe Coding", engineering: "Vibe Engineering"
+  };
+
+  if (!users || !stages) return (
+    <div className="flex justify-center pt-20">
+      <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+    </div>
+  );
+
+  const completedIds = new Set(userProgress?.filter(p => p.completed).map(p => p.stageId) || []);
+  const trackList = ["ai","automation","vibe","engineering"];
+
   return (
     <div className="px-4 pt-6 space-y-3 pb-6">
-      <div style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-xl px-4 py-3 flex justify-between">
-        <p style={{color:"#444"}} className="text-xs">إجمالي الإنجازات</p>
-        <p style={{color:"#C9A84C"}} className="text-xs font-bold">{progress.length}</p>
-      </div>
-      {progress.length === 0 && (
-        <div style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-xl p-6 text-center">
-          <p style={{color:"#333"}} className="text-sm">لا يوجد تقدم بعد</p>
-        </div>
-      )}
-      {progress.map((p) => (
-        <div key={p._id} style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-xl p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {p.userImage
-                ? <img src={p.userImage} className="w-7 h-7 rounded-full object-cover" alt="" />
-                : <div style={{background:"#141414", border:"1px solid #1e1e1e"}}
-                    className="w-7 h-7 rounded-full flex items-center justify-center">
-                    <span style={{color:"#C9A84C"}} className="text-xs font-bold">{p.userName?.[0]}</span>
-                  </div>
-              }
-              <p className="text-sm text-gray-300 font-medium">{p.userName}</p>
+      {!selectedUser ? (
+        <>
+          <div style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-xl px-4 py-3 flex justify-between">
+            <p style={{color:"#444"}} className="text-xs">المستخدمون</p>
+            <p style={{color:"#C9A84C"}} className="text-xs font-bold">{users.length}</p>
+          </div>
+          {users.length === 0 && (
+            <div style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-xl p-6 text-center">
+              <p style={{color:"#333"}} className="text-sm">لا يوجد مستخدمون بعد</p>
             </div>
-            <div className="flex items-center gap-2">
-              {p.score !== undefined && (
-                <span style={{background:"#0d1a0d", color:"#4ade80", border:"1px solid #1a3a1a"}}
-                  className="text-xs px-2 py-0.5 rounded-full">{p.score}%</span>
-              )}
-              <span style={{color: trackColors[p.stageTrack] || "#555", border:"1px solid #1e1e1e"}}
-                className="text-xs px-2 py-0.5 rounded-full">{p.stageTrack}</span>
+          )}
+          {users.map((u) => (
+            <button key={u._id} onClick={() => setSelectedUser(u)} className="w-full text-right"
+              style={{background:"#111", border:"1px solid #1e1e1e"}} >
+              <div className="rounded-xl p-4 flex items-center gap-3">
+                {u.image
+                  ? <img src={u.image} className="w-10 h-10 rounded-full object-cover shrink-0" alt="" />
+                  : <div style={{background:"#141414", border:"1px solid #2a2500"}} className="w-10 h-10 rounded-full flex items-center justify-center shrink-0">
+                      <span style={{color:"#C9A84C"}} className="text-sm font-bold">{u.name?.[0]}</span>
+                    </div>
+                }
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-200 font-medium truncate">{u.name}</p>
+                  <p style={{color:"#444"}} className="text-xs truncate">{u.email}</p>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+              </div>
+            </button>
+          ))}
+        </>
+      ) : (
+        <>
+          <button onClick={() => setSelectedUser(null)} className="flex items-center gap-2 mb-2"
+            style={{color:"#C9A84C"}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            <span className="text-sm">رجوع</span>
+          </button>
+          <div style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-xl p-4 flex items-center gap-3">
+            {selectedUser.image
+              ? <img src={selectedUser.image} className="w-12 h-12 rounded-full object-cover" alt="" />
+              : <div style={{background:"#141414", border:"2px solid #C9A84C"}} className="w-12 h-12 rounded-full flex items-center justify-center">
+                  <span style={{color:"#C9A84C"}} className="text-sm font-bold">{selectedUser.name?.[0]}</span>
+                </div>
+            }
+            <div>
+              <p className="text-white font-semibold text-sm">{selectedUser.name}</p>
+              <p style={{color:"#444"}} className="text-xs">{completedIds.size} مرحلة مكتملة</p>
             </div>
           </div>
-          <p style={{color:"#666"}} className="text-xs truncate">📚 {p.stageTitle}</p>
-          {p.completedAt && (
-            <p style={{color:"#333"}} className="text-xs">{new Date(p.completedAt).toLocaleDateString("ar")}</p>
-          )}
-        </div>
-      ))}
+          {trackList.map((track) => {
+            const trackStages = stages.filter(s => s.track === track).sort((a,b) => a.order - b.order);
+            return (
+              <div key={track} style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-xl overflow-hidden">
+                <div className="px-4 py-3 flex items-center justify-between" style={{borderBottom:"1px solid #1a1a1a"}}>
+                  <p style={{color: trackColors[track]}} className="text-xs font-semibold">{trackLabels[track]}</p>
+                  <p style={{color:"#444"}} className="text-xs">{trackStages.filter(s => completedIds.has(s._id)).length}/{trackStages.length}</p>
+                </div>
+                <div className="p-3 space-y-2">
+                  {trackStages.map((stage) => {
+                    const done = completedIds.has(stage._id);
+                    const prog = userProgress?.find(p => p.stageId === stage._id);
+                    return (
+                      <div key={stage._id} style={{background:"#0e0e0e", border: done ? "1px solid #1a3a1a" : "1px solid #1a1a1a"}} className="rounded-lg p-3 flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-gray-300 truncate">{stage.title}</p>
+                          {done && prog?.score !== undefined && (
+                            <p style={{color:"#4ade80"}} className="text-xs mt-0.5">✓ {prog.score}%</p>
+                          )}
+                        </div>
+                        {!done && (
+                          <button onClick={() => unlockStage({ userId: selectedUser.clerkId, stageId: stage._id })}
+                            style={{border:"1px solid #2a2500", color:"#C9A84C"}}
+                            className="text-xs px-2 py-1 rounded-lg shrink-0 mr-2">فتح</button>
+                        )}
+                        {done && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }
+function MessagesAdminPage({ adminId, adminName, adminImage }: { adminId: string; adminName: string; adminImage?: string }) {
+  const conversations = useQuery(api.messages.getAllConversations);
+  const users = useQuery(api.users.getAllUsers);
+  const sendMessage = useMutation(api.messages.sendMessage);
+  const broadcastMessage = useMutation(api.messages.broadcastMessage);
+  const markAsRead = useMutation(api.messages.markAsRead);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [text, setText] = useState("");
+  const [broadcastText, setBroadcastText] = useState("");
+  const [showBroadcast, setShowBroadcast] = useState(false);
 
+  const conversation = useQuery(
+    api.messages.getConversation,
+    selectedUserId ? { userId: adminId, otherUserId: selectedUserId } : "skip"
+  );
+
+  const selectedUser = users?.find(u => u.clerkId === selectedUserId);
+
+  const handleSend = async () => {
+    if (!text.trim() || !selectedUserId) return;
+    await sendMessage({ fromId: adminId, toId: selectedUserId, fromName: adminName, fromImage: adminImage, content: text });
+    setText("");
+  };
+
+  const handleBroadcast = async () => {
+    if (!broadcastText.trim()) return;
+    await broadcastMessage({ fromId: adminId, fromName: adminName, fromImage: adminImage, content: broadcastText });
+    setBroadcastText(""); setShowBroadcast(false);
+  };
+
+  if (!conversations || !users) return (
+    <div className="flex justify-center pt-20">
+      <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+    </div>
+  );
+
+  return (
+    <div className="px-4 pt-6 space-y-3 pb-6">
+      <button onClick={() => setShowBroadcast(!showBroadcast)}
+        style={{background:"#1a1500", border:"1px solid #3a3000", color:"#C9A84C"}}
+        className="w-full py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16z"/></svg>
+        إرسال للجميع
+      </button>
+
+      {showBroadcast && (
+        <div style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-xl p-4 space-y-3">
+          <p style={{color:"#C9A84C"}} className="text-xs font-semibold">رسالة لجميع المستخدمين</p>
+          <textarea value={broadcastText} onChange={e => setBroadcastText(e.target.value)}
+            placeholder="اكتب رسالتك هنا..."
+            style={{background:"#0e0e0e", border:"1px solid #1e1e1e", color:"#f5f5f5"}}
+            className="w-full rounded-xl px-3 py-2.5 text-sm outline-none min-h-16 resize-none placeholder-gray-700" />
+          <button onClick={handleBroadcast} disabled={!broadcastText.trim()}
+            style={{background: broadcastText.trim() ? "#C9A84C" : "#1a1a1a", color: broadcastText.trim() ? "#000" : "#444"}}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold">إرسال للجميع</button>
+        </div>
+      )}
+
+      {!selectedUserId ? (
+        <div className="space-y-2">
+          <p style={{color:"#444"}} className="text-xs px-1">المحادثات</p>
+          {conversations.length === 0 && (
+            <div style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-xl p-6 text-center">
+              <p style={{color:"#333"}} className="text-sm">لا توجد محادثات بعد</p>
+            </div>
+          )}
+          {conversations.map((msg) => {
+            const userId = msg.fromId === adminId ? msg.toId : msg.fromId;
+            const u = users.find(u => u.clerkId === userId);
+            return (
+              <button key={msg._id} onClick={() => { setSelectedUserId(userId); markAsRead({ userId: adminId, fromId: userId }); }}
+                className="w-full text-right" style={{background:"#111", border:"1px solid #1e1e1e"}}>
+                <div className="rounded-xl p-4 flex items-center gap-3">
+                  {u?.image
+                    ? <img src={u.image} className="w-9 h-9 rounded-full object-cover shrink-0" alt="" />
+                    : <div style={{background:"#141414", border:"1px solid #2a2500"}} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0">
+                        <span style={{color:"#C9A84C"}} className="text-xs font-bold">{(u?.name || msg.fromName)?.[0]}</span>
+                      </div>
+                  }
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-200 font-medium truncate">{u?.name || msg.fromName}</p>
+                    <p style={{color:"#444"}} className="text-xs truncate">{msg.content}</p>
+                  </div>
+                  {!msg.read && msg.toId === adminId && (
+                    <span style={{background:"#ef4444"}} className="w-2 h-2 rounded-full shrink-0"></span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <>
+          <button onClick={() => setSelectedUserId(null)} className="flex items-center gap-2"
+            style={{color:"#C9A84C"}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            <span className="text-sm">رجوع</span>
+          </button>
+          <div style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-xl p-3 flex items-center gap-3">
+            {selectedUser?.image
+              ? <img src={selectedUser.image} className="w-9 h-9 rounded-full object-cover" alt="" />
+              : <div style={{background:"#141414", border:"1px solid #2a2500"}} className="w-9 h-9 rounded-full flex items-center justify-center">
+                  <span style={{color:"#C9A84C"}} className="text-xs font-bold">{selectedUser?.name?.[0]}</span>
+                </div>
+            }
+            <p className="text-sm text-white font-medium">{selectedUser?.name}</p>
+          </div>
+          <div style={{background:"#111", border:"1px solid #1e1e1e", minHeight:"250px"}} className="rounded-xl p-4 space-y-3">
+            {!conversation?.length && (
+              <p style={{color:"#333"}} className="text-sm text-center pt-8">لا توجد رسائل بعد</p>
+            )}
+            {conversation?.map((msg) => {
+              const isAdmin = msg.fromId === adminId;
+              return (
+                <div key={msg._id} className={`flex ${isAdmin ? "justify-start" : "justify-end"}`}>
+                  <div style={{
+                    background: isAdmin ? "#1a1500" : "#141414",
+                    border: isAdmin ? "1px solid #3a3000" : "1px solid #1e1e1e",
+                    maxWidth: "80%",
+                  }} className="rounded-2xl px-4 py-2.5 space-y-1">
+                    <p className="text-sm text-gray-200">{msg.content}</p>
+                    <p style={{color:"#444"}} className="text-xs">{new Date(msg.createdAt).toLocaleTimeString("ar")}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{background:"#111", border:"1px solid #1e1e1e"}} className="rounded-xl p-4 space-y-3">
+            <textarea value={text} onChange={e => setText(e.target.value)}
+              placeholder="اكتب رسالتك..."
+              style={{background:"#0e0e0e", border:"1px solid #1e1e1e", color:"#f5f5f5"}}
+              className="w-full rounded-xl px-3 py-2.5 text-sm outline-none min-h-16 resize-none placeholder-gray-700" />
+            <button onClick={handleSend} disabled={!text.trim()}
+              style={{background: text.trim() ? "#C9A84C" : "#1a1a1a", color: text.trim() ? "#000" : "#444"}}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold">إرسال</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 function AdminSettings({ user, signOut }: { user: any; signOut: any }) {
   return (
     <div className="px-4 pt-6 space-y-4 pb-6">
@@ -592,18 +801,27 @@ function AdminSettings({ user, signOut }: { user: any; signOut: any }) {
   );
 }
 
+
 export default function AdminPage() {
-  const [page, setPage] = useState<"add"|"stages"|"users"|"comments"|"progress"|"settings">("add");
+  const [page, setPage] = useState<"add"|"stages"|"users"|"comments"|"messages"|"progress"|"settings">("add");
   const { user } = useUser();
   const { signOut } = useClerk();
 
   const navItems = [
-    { id:"add",      Icon: Plus,          label:"إضافة"      },
-    { id:"stages",   Icon: ClipboardList, label:"المراحل"    },
-    { id:"users",    Icon: Users,         label:"المستخدمون" },
-    { id:"comments", Icon: MessageSquare, label:"التعليقات"  },
-    { id:"progress", Icon: BarChart2,     label:"التقدم"     },
-    { id:"settings", Icon: Settings,      label:"إعدادات"    },
+    { id:"add",      label:"إضافة",
+      icon: (a:boolean) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2:1.5}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> },
+    { id:"stages",   label:"المراحل",
+      icon: (a:boolean) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2:1.5}><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> },
+    { id:"users",    label:"المستخدمون",
+      icon: (a:boolean) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2:1.5}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
+    { id:"comments", label:"التعليقات",
+      icon: (a:boolean) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2:1.5}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
+    { id:"messages", label:"الرسائل",
+      icon: (a:boolean) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2:1.5}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> },
+    { id:"progress", label:"التقدم",
+      icon: (a:boolean) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2:1.5}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
+    { id:"settings", label:"إعدادات",
+      icon: (a:boolean) => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={a?2:1.5}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
   ];
 
   return (
@@ -611,25 +829,31 @@ export default function AdminPage() {
       <header style={{background:"#080808", borderBottom:"1px solid #141414"}}
         className="px-6 py-4 sticky top-0 z-10 flex items-center gap-2">
         <div style={{background:"#C9A84C", borderRadius:"6px"}} className="w-6 h-6 flex items-center justify-center">
-          <Brain size={13} color="#000" strokeWidth={2.5} />
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5">
+            <path d="M12 2a7 7 0 0 1 7 7c0 5-7 13-7 13S5 14 5 9a7 7 0 0 1 7-7z"/>
+            <circle cx="12" cy="9" r="2.5"/>
+          </svg>
         </div>
         <h1 style={{color:"#C9A84C"}} className="text-lg font-bold tracking-wide flex-1">لوحة التحكم</h1>
       </header>
+
       <div className="overflow-y-auto">
         {page === "add"      && <AddStagePage />}
         {page === "stages"   && <StagesPage />}
         {page === "users"    && <UsersPage />}
         {page === "comments" && <CommentsPage adminId={user?.id ?? ""} />}
+        {page === "messages" && <MessagesAdminPage adminId={user?.id ?? ""} adminName={user?.fullName ?? "الأدمن"} adminImage={user?.imageUrl} />}
         {page === "progress" && <ProgressPage />}
         {page === "settings" && <AdminSettings user={user} signOut={signOut} />}
       </div>
+
       <nav style={{background:"#0a0a0a", borderTop:"1px solid #141414"}}
         className="fixed bottom-0 left-0 right-0 flex justify-around py-2 z-10">
-        {navItems.map(({ id, Icon, label }) => (
+        {navItems.map(({ id, icon, label }) => (
           <button key={id} onClick={() => setPage(id as any)}
             className="flex flex-col items-center gap-0.5 transition-all"
             style={{color: page === id ? "#C9A84C" : "#333"}}>
-            <Icon size={18} strokeWidth={page === id ? 2 : 1.5} />
+            {icon(page === id)}
             <span className="text-[10px]">{label}</span>
           </button>
         ))}

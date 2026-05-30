@@ -85,3 +85,48 @@ export const resetStageProgress = mutation({
     await Promise.all(toDelete.map((p) => ctx.db.delete(p._id)));
   },
 });
+
+export const getUserProgressDetailed = query({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const allProgress = await ctx.db
+      .query("progress")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    const enriched = await Promise.all(
+      allProgress.map(async (p) => {
+        const stage = await ctx.db.get(p.stageId);
+        return {
+          ...p,
+          stageTitle: stage?.title ?? "—",
+          stageTrack: stage?.track ?? "—",
+          stageOrder: stage?.order ?? 0,
+        };
+      })
+    );
+    return enriched.sort((a, b) => a.stageOrder - b.stageOrder);
+  },
+});
+
+export const unlockStageForUser = mutation({
+  args: { userId: v.string(), stageId: v.id("stages") },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("progress")
+      .withIndex("by_user_stage", (q) =>
+        q.eq("userId", args.userId).eq("stageId", args.stageId)
+      )
+      .first();
+    if (existing) {
+      await ctx.db.patch(existing._id, { completed: true, score: 100, completedAt: Date.now() });
+    } else {
+      await ctx.db.insert("progress", {
+        userId: args.userId,
+        stageId: args.stageId,
+        completed: true,
+        score: 100,
+        completedAt: Date.now(),
+      });
+    }
+  },
+});
